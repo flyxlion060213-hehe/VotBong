@@ -132,47 +132,30 @@
       if(bat.x < 0) bat.x = 0;
       if(bat.x + bat.w > W) bat.x = W - bat.w;
 
-      // va chạm biên ngang (sử dụng ball.x + ball.vx để ước lượng đường đi)
-      if(ball.x + ball.vx + ball.r > W){
-        ball.x = W - ball.r;
-        ball.vx = -Math.abs(ball.vx);
-      } else if(ball.x + ball.vx - ball.r < 0){
-        ball.x = ball.r;
-        ball.vx = Math.abs(ball.vx);
-      }
+// va chạm vợt
+if (ball.vy > 0 && ball.y + ball.vy + ball.r >= bat.y) {
+  if (ball.x + ball.r >= bat.x && ball.x - ball.r <= bat.x + bat.w) {
+    const hitPos = (ball.x - (bat.x + bat.w/2)) / (bat.w/2);
+    const newAngle = -Math.PI/2 + hitPos * Math.PI/3;
+    const newSpeed = Math.min(6 + score * 0.05, 12);
 
-      // trần
-      if(ball.y + ball.vy - ball.r < 0){
-        ball.y = ball.r;
-        ball.vy = Math.abs(ball.vy);
-      }
+    ball.vx = Math.cos(newAngle) * newSpeed;
+    ball.vy = Math.sin(newAngle) * newSpeed;
+    if (ball.vy > 0) ball.vy = -Math.abs(ball.vy);
 
-      // va chạm vợt: kiểm tra nếu bóng di chuyển xuống và chạm vùng y của vợt
-      if(ball.vy > 0 && ball.y + ball.vy + ball.r >= bat.y){
-        if(ball.x + ball.r >= bat.x && ball.x - ball.r <= bat.x + bat.w){
-          // tính vị trí chạm [-1..1]
-          const hitPos = (ball.x - (bat.x + bat.w/2)) / (bat.w/2);
-          const newAngle = -Math.PI/2 + hitPos * Math.PI/3; // góc từ -150° -> -30°
-          const newSpeed = Math.min(6 + score*0.05, 12); // giới hạn tốc độ max
+    // Đẩy bóng ra khỏi vợt: đặt y thấp hơn vợt
+    ball.y = bat.y - ball.r - 0.5;
 
-          ball.vx = Math.cos(newAngle) * newSpeed;
-          ball.vy = Math.sin(newAngle) * newSpeed;
+    score += 1;
+    bounceCount += 1;
+    if (bounceCount >= 4) {
+      bounceCount = 0;
+      bat.speed = Math.min(bat.speed + 0.8, 12);
+    }
+    updateScore();
+  }
+}
 
-          // đảm bảo bóng đi lên
-          if(ball.vy > 0) ball.vy = -Math.abs(ball.vy);
-
-          // đẩy bóng ra khỏi vợt để tránh va chạm lặp
-          ball.y = bat.y - ball.r - 0.5;
-
-          score += 1;
-          bounceCount += 1;
-          if(bounceCount >= 4){
-            bounceCount = 0;
-            bat.speed = Math.min(bat.speed + 0.8, 12);
-          }
-          updateScore();
-        }
-      }
 
       // di chuyển bóng
       ball.x += ball.vx;
