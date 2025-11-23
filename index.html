@@ -149,13 +149,31 @@
     }
 
     function reset(){
-      score=0; bounceCount=0;
-      bat.x = 10; bat.speed = config.batSpeed;
-      ball.x = 60; ball.y = config.batY - 20;
-      ball.vx = config.startVx * (Math.random() > 0.5 ? 1 : -1);
-      ball.vy = config.startVy;
-      updateScore();
-    }
+  score = 0; 
+  bounceCount = 0;
+
+  // reset bat
+  bat.x = 10;
+  bat.speed = config.batSpeed;
+
+  // reset ball
+  ball.x = 60;
+  ball.y = config.batY - 20;
+  ball.vx = config.startVx * (Math.random() > 0.5 ? 1 : -1);
+  ball.vy = config.startVy;
+
+  // quan trọng: reset trạng thái phím
+  leftPressed = false;
+  rightPressed = false;
+
+  // luôn bật lại game loop
+  if(!running){
+    running = true;
+    requestAnimationFrame(loop);
+  }
+
+  updateScore();
+}
 
     // vòng lặp render
     function draw(){
@@ -182,11 +200,11 @@
       if(e.key === 'ArrowRight') rightPressed = false;
     });
 
-    resetBtn.addEventListener('click', ()=>{
-      reset();
-      if(!running){ running=true; requestAnimationFrame(loop); }
-    });
-
+   resetBtn.addEventListener('click', ()=>{
+  running = true;
+  reset();
+  requestAnimationFrame(loop);
+});
     // bắt đầu
     reset();
     requestAnimationFrame(loop);
