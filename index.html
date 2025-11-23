@@ -78,54 +78,59 @@
     }
 
     function update(){
-      // di chuyển vợt
-      let mv = (rightPressed?1:0) - (leftPressed?1:0);
-      bat.x += mv * bat.speed;
-      if(bat.x < 0) bat.x = 0;
-      if(bat.x + bat.w > W) bat.x = W - bat.w;
+  // di chuyển vợt
+  let mv = (rightPressed?1:0) - (leftPressed?1:0);
+  bat.x += mv * bat.speed;
+  if(bat.x < 0) bat.x = 0;
+  if(bat.x + bat.w > W) bat.x = W - bat.w;
 
-      // va chạm biên ngang
-      if(ball.x + ball.vx + ball.r > W){
-        ball.x = W - ball.r;
-        ball.vx = -Math.abs(ball.vx);
-      } else if(ball.x + ball.vx - ball.r < 0){
-        ball.x = ball.r;
-        ball.vx = Math.abs(ball.vx);
+  // va chạm biên ngang
+  if(ball.x + ball.vx + ball.r > W){
+    ball.x = W - ball.r;
+    ball.vx = -Math.abs(ball.vx);
+  } else if(ball.x + ball.vx - ball.r < 0){
+    ball.x = ball.r;
+    ball.vx = Math.abs(ball.vx);
+  }
+
+  // trần
+  if(ball.y + ball.vy - ball.r < 0){
+    ball.y = ball.r;
+    ball.vy = Math.abs(ball.vy);
+  }
+
+  // va chạm vợt (kiểm tra trước khi cập nhật vị trí để tránh xuyên)
+  if(ball.vy > 0 && ball.y + ball.vy + ball.r >= bat.y){
+    if(ball.x + ball.r >= bat.x && ball.x - ball.r <= bat.x + bat.w){
+      // tính vị trí chạm [-1..1]
+      const hitPos = (ball.x - (bat.x + bat.w/2)) / (bat.w/2);
+      const speed = Math.sqrt(ball.vx*ball.vx + ball.vy*ball.vy);
+      const newAngle = -Math.PI/2 + hitPos * Math.PI/3; // -150° -> -30°
+      const newSpeed = Math.min(6 + score*0.05, 12); // giới hạn tốc độ
+
+      ball.vx = Math.cos(newAngle) * newSpeed;
+      ball.vy = Math.sin(newAngle) * newSpeed;
+
+      // đảm bảo bóng đi lên
+      if (ball.vy > 0) ball.vy = -Math.abs(ball.vy);
+
+      // đẩy bóng ra khỏi vợt để tránh va chạm lặp
+      ball.y = bat.y - ball.r - 0.1;
+
+      score += 1;
+      bounceCount += 1;
+      if(bounceCount >= 4){
+        bounceCount = 0;
+        bat.speed = Math.min(bat.speed + 0.8, 12);
       }
-
-      // trần
-      if(ball.y + ball.vy - ball.r < 0){
-        ball.y = ball.r;
-        ball.vy = Math.abs(ball.vy);
-      }
-
-      // va chạm vợt
-      if(ball.vy > 0 && ball.y + ball.vy + ball.r >= bat.y){
-        if(ball.x + ball.r >= bat.x && ball.x - ball.r <= bat.x + bat.w){
-          // tính phản xạ theo vị trí chạm để kiểm soát hướng
-          const hitPos = (ball.x - (bat.x + bat.w/2)) / (bat.w/2); // -1 .. 1
-          const speed = Math.sqrt(ball.vx*ball.vx + ball.vy*ball.vy);
-          const newAngle = -Math.PI/2 + hitPos * Math.PI/3; // góc từ -60 ->  -120 deg
-          const newSpeed = Math.min(6 + score*0.05, 12); // giới hạn tốc độ max
-          ball.vx = Math.cos(newAngle) * newSpeed;
-          ball.vy = Math.sin(newAngle) * newSpeed;
-          if(ball.vy > -1.5) ball.vy = -Math.abs(ball.vy);
-
-          score += 1;
-          bounceCount += 1;
-          if(bounceCount >= 4){
-            bounceCount = 0;
-            bat.speed = Math.min(bat.speed + 0.8, 12);
-          }
-          updateScore();
-        }
-      }
-
-      // di chuyển bóng
-      ball.x += ball.vx;
-      ball.y += ball.vy;
+      updateScore();
     }
+  }
 
+  // di chuyển bóng
+  ball.x += ball.vx;
+  ball.y += ball.vy;
+}
     function updateScore(){ scoreEl.textContent = score; }
 
     function checkGameOver(){
