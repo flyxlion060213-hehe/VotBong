@@ -133,20 +133,13 @@
 }
     function updateScore(){ scoreEl.textContent = score; }
 
-    function checkGameOver(){
-      if(ball.y - ball.r > H){
-        running = false;
-        setTimeout(()=>{
-          if(confirm('Bạn thua! Điểm: ' + score + '\\nChơi lại?')){
-            reset();
-            running = true;
-            requestAnimationFrame(loop);
-          } else {
-            // dừng
-          }
-        }, 50);
-      }
-    }
+  setTimeout(()=>{
+  if(confirm('Bạn thua! Điểm: ' + score + '\\nChơi lại?')){
+    reset();
+    running = true;
+    requestAnimationFrame(loop);
+  }
+}, 50);
 
     function reset(){
   score = 0; 
