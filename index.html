@@ -137,7 +137,7 @@ if (ball.vy > 0 && ball.y + ball.vy + ball.r >= bat.y) {
   if (ball.x + ball.r >= bat.x && ball.x - ball.r <= bat.x + bat.w) {
     const hitPos = (ball.x - (bat.x + bat.w/2)) / (bat.w/2);
     const newAngle = -Math.PI/2 + hitPos * Math.PI/3;
-    const newSpeed = Math.min(6 + score * 0.05, 12);
+    const newSpeed = Math.min(3 + score * 0.015, 6);
 
     ball.vx = Math.cos(newAngle) * newSpeed;
     ball.vy = Math.sin(newAngle) * newSpeed;
