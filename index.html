@@ -3,15 +3,41 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Vợt Bóng - Pong (HTML)</title>
+  <title>Vợt Bóng - Pong (HTML) - Fixed</title>
   <style>
-    :root{--bg:#08303a;--panel:#0f5f72;--bat:#20b2aa;--ball:#ff69b4;--text:#e6f6f8}
+    :root{
+      --bg:#08303a;--panel:#0f5f72;--bat:#20b2aa;--ball:#ff69b4;--text:#e6f6f8;
+      --modal-bg: rgba(0,0,0,0.6);
+    }
     body{margin:0;display:flex;align-items:center;justify-content:center;height:100vh;background:linear-gradient(180deg,#021b22,#04323a);font-family:system-ui,Segoe UI,Roboto,Arial}
     #gameWrap{background:var(--panel);padding:12px;border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.5);width:max-content}
     canvas{display:block;border-radius:8px;background:linear-gradient(180deg,#0f6b82,#074b5b);cursor:default}
     #hud{color:var(--text);text-align:center;margin-top:10px;display:flex;gap:12px;align-items:center;justify-content:center}
     button{padding:8px 12px;border-radius:8px;border:none;background:#fff;color:#123;cursor:pointer}
     .small{font-size:13px;color:#d9f0f2}
+
+    /* Simple modal (non-blocking) */
+    .modal {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: var(--modal-bg);
+      z-index: 40;
+    }
+    .modal .card {
+      background: linear-gradient(180deg,#0f6b82,#074b5b);
+      color: var(--text);
+      padding: 18px;
+      border-radius: 10px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+      text-align:center;
+      min-width: 260px;
+    }
+    .modal .card h3 { margin: 0 0 8px 0; font-size: 18px; }
+    .modal .card p { margin: 0 0 14px 0; color: #d9f0f2; }
+    .modal.show { display:flex; }
   </style>
 </head>
 <body>
@@ -24,12 +50,31 @@
     </div>
   </div>
 
+  <!-- Non-blocking modal thay confirm -->
+  <div id="gameOverModal" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="card">
+      <h3 id="modalTitle">Bạn thua!</h3>
+      <p id="modalText">Điểm: 0</p>
+      <div style="display:flex;gap:8px;justify-content:center">
+        <button id="playAgain">Chơi lại</button>
+        <button id="closeModal">Thoát</button>
+      </div>
+    </div>
+  </div>
+
   <script>
-    // HTML/JS Pong - phiên bản ổn định
+    // HTML/JS Pong - phiên bản đã sửa: tránh rAF chồng, xử lý va chạm, modal non-blocking, reset phím on blur.
+
     const canvas = document.getElementById('game');
     const ctx = canvas.getContext('2d');
     const scoreEl = document.getElementById('score');
     const resetBtn = document.getElementById('reset');
+
+    const modal = document.getElementById('gameOverModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalText = document.getElementById('modalText');
+    const playAgainBtn = document.getElementById('playAgain');
+    const closeModalBtn = document.getElementById('closeModal');
 
     const W = canvas.width, H = canvas.height;
 
@@ -38,7 +83,6 @@
       batW: 80, batH: 12, batY: H - 40, batSpeed: 5,
       ballR: 7,
       startVx: 2.2, startVy: -2.6,
-      fpsDelay: 1000/60
     };
 
     let bat = {x: 10, y: config.batY, w: config.batW, h: config.batH, speed: config.batSpeed};
@@ -47,10 +91,13 @@
     let score=0, bounceCount=0;
     let running=true;
 
+    // Raf id to avoid multiple requestAnimationFrame
+    let rafId = null;
+
     // vẽ
     function drawBackground(){
-      // optional grid / glow
       ctx.clearRect(0,0,W,H);
+      // nhẹ nhàng glow/grid
       ctx.fillStyle = 'rgba(255,255,255,0.02)';
       ctx.fillRect(0,0,W,H);
     }
@@ -77,96 +124,111 @@
       if(stroke) ctx.stroke();
     }
 
+    // update logic (sửa: đặt lại vị trí sau va chạm, đảm bảo chỉ 1 rAF)
     function update(){
-  // di chuyển vợt
-  let mv = (rightPressed?1:0) - (leftPressed?1:0);
-  bat.x += mv * bat.speed;
-  if(bat.x < 0) bat.x = 0;
-  if(bat.x + bat.w > W) bat.x = W - bat.w;
+      // di chuyển vợt
+      let mv = (rightPressed?1:0) - (leftPressed?1:0);
+      bat.x += mv * bat.speed;
+      if(bat.x < 0) bat.x = 0;
+      if(bat.x + bat.w > W) bat.x = W - bat.w;
 
-  // va chạm biên ngang
-  if(ball.x + ball.vx + ball.r > W){
-    ball.x = W - ball.r;
-    ball.vx = -Math.abs(ball.vx);
-  } else if(ball.x + ball.vx - ball.r < 0){
-    ball.x = ball.r;
-    ball.vx = Math.abs(ball.vx);
-  }
-
-  // trần
-  if(ball.y + ball.vy - ball.r < 0){
-    ball.y = ball.r;
-    ball.vy = Math.abs(ball.vy);
-  }
-
-  // va chạm vợt (kiểm tra trước khi cập nhật vị trí để tránh xuyên)
-  if(ball.vy > 0 && ball.y + ball.vy + ball.r >= bat.y){
-    if(ball.x + ball.r >= bat.x && ball.x - ball.r <= bat.x + bat.w){
-      // tính vị trí chạm [-1..1]
-      const hitPos = (ball.x - (bat.x + bat.w/2)) / (bat.w/2);
-      const speed = Math.sqrt(ball.vx*ball.vx + ball.vy*ball.vy);
-      const newAngle = -Math.PI/2 + hitPos * Math.PI/3; // -150° -> -30°
-      const newSpeed = Math.min(6 + score*0.05, 12); // giới hạn tốc độ
-
-      ball.vx = Math.cos(newAngle) * newSpeed;
-      ball.vy = Math.sin(newAngle) * newSpeed;
-
-      // đảm bảo bóng đi lên
-      if (ball.vy > 0) ball.vy = -Math.abs(ball.vy);
-
-      // đẩy bóng ra khỏi vợt để tránh va chạm lặp
-      ball.y = bat.y - ball.r - 0.1;
-
-      score += 1;
-      bounceCount += 1;
-      if(bounceCount >= 4){
-        bounceCount = 0;
-        bat.speed = Math.min(bat.speed + 0.8, 12);
+      // va chạm biên ngang (sử dụng ball.x + ball.vx để ước lượng đường đi)
+      if(ball.x + ball.vx + ball.r > W){
+        ball.x = W - ball.r;
+        ball.vx = -Math.abs(ball.vx);
+      } else if(ball.x + ball.vx - ball.r < 0){
+        ball.x = ball.r;
+        ball.vx = Math.abs(ball.vx);
       }
-      updateScore();
-    }
-  }
 
-  // di chuyển bóng
-  ball.x += ball.vx;
-  ball.y += ball.vy;
-}
+      // trần
+      if(ball.y + ball.vy - ball.r < 0){
+        ball.y = ball.r;
+        ball.vy = Math.abs(ball.vy);
+      }
+
+      // va chạm vợt: kiểm tra nếu bóng di chuyển xuống và chạm vùng y của vợt
+      if(ball.vy > 0 && ball.y + ball.vy + ball.r >= bat.y){
+        if(ball.x + ball.r >= bat.x && ball.x - ball.r <= bat.x + bat.w){
+          // tính vị trí chạm [-1..1]
+          const hitPos = (ball.x - (bat.x + bat.w/2)) / (bat.w/2);
+          const newAngle = -Math.PI/2 + hitPos * Math.PI/3; // góc từ -150° -> -30°
+          const newSpeed = Math.min(6 + score*0.05, 12); // giới hạn tốc độ max
+
+          ball.vx = Math.cos(newAngle) * newSpeed;
+          ball.vy = Math.sin(newAngle) * newSpeed;
+
+          // đảm bảo bóng đi lên
+          if(ball.vy > 0) ball.vy = -Math.abs(ball.vy);
+
+          // đẩy bóng ra khỏi vợt để tránh va chạm lặp
+          ball.y = bat.y - ball.r - 0.5;
+
+          score += 1;
+          bounceCount += 1;
+          if(bounceCount >= 4){
+            bounceCount = 0;
+            bat.speed = Math.min(bat.speed + 0.8, 12);
+          }
+          updateScore();
+        }
+      }
+
+      // di chuyển bóng
+      ball.x += ball.vx;
+      ball.y += ball.vy;
+    }
+
     function updateScore(){ scoreEl.textContent = score; }
 
-  setTimeout(()=>{
-  if(confirm('Bạn thua! Điểm: ' + score + '\\nChơi lại?')){
-    reset();
-    running = true;
-    requestAnimationFrame(loop);
-  }
-}, 50);
+    function showGameOver(){
+      running = false;
+      // cancel RAF to prevent multiple loops
+      if(rafId !== null){
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+      modalTitle.textContent = 'Bạn thua!';
+      modalText.textContent = 'Điểm: ' + score;
+      modal.classList.add('show');
+      modal.setAttribute('aria-hidden', 'false');
+    }
+
+    function hideGameOver(){
+      modal.classList.remove('show');
+      modal.setAttribute('aria-hidden', 'true');
+    }
+
+    function checkGameOver(){
+      if(ball.y - ball.r > H){
+        // show modal (non-blocking)
+        showGameOver();
+      }
+    }
 
     function reset(){
-  score = 0; 
-  bounceCount = 0;
+      // cancel any running RAF first
+      if(rafId !== null){
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
 
-  // reset bat
-  bat.x = 10;
-  bat.speed = config.batSpeed;
+      score=0; bounceCount=0;
 
-  // reset ball
-  ball.x = 60;
-  ball.y = config.batY - 20;
-  ball.vx = config.startVx * (Math.random() > 0.5 ? 1 : -1);
-  ball.vy = config.startVy;
+      bat.x = 10; bat.speed = config.batSpeed;
+      ball.x = 60; ball.y = config.batY - 20;
+      ball.vx = config.startVx * (Math.random() > 0.5 ? 1 : -1);
+      ball.vy = config.startVy;
 
-  // quan trọng: reset trạng thái phím
-  leftPressed = false;
-  rightPressed = false;
+      // reset phím để tránh kẹt phím nếu đang mất focus
+      leftPressed = false;
+      rightPressed = false;
 
-  // luôn bật lại game loop
-  if(!running){
-    running = true;
-    requestAnimationFrame(loop);
-  }
+      updateScore();
 
-  updateScore();
-}
+      // hide modal if open
+      hideGameOver();
+    }
 
     // vòng lặp render
     function draw(){
@@ -176,31 +238,58 @@
     }
 
     function loop(){
-      if(!running) return;
+      if(!running){
+        rafId = null;
+        return;
+      }
+
       update();
       draw();
       checkGameOver();
-      requestAnimationFrame(loop);
+
+      // đăng ký rAF tiếp theo
+      rafId = requestAnimationFrame(loop);
     }
 
     // events
     window.addEventListener('keydown', e=>{
-      if(e.key === 'ArrowLeft') leftPressed = true;
-      if(e.key === 'ArrowRight') rightPressed = true;
+      if(e.key === 'ArrowLeft' || e.key === 'Left') leftPressed = true;
+      if(e.key === 'ArrowRight' || e.key === 'Right') rightPressed = true;
     });
     window.addEventListener('keyup', e=>{
-      if(e.key === 'ArrowLeft') leftPressed = false;
-      if(e.key === 'ArrowRight') rightPressed = false;
+      if(e.key === 'ArrowLeft' || e.key === 'Left') leftPressed = false;
+      if(e.key === 'ArrowRight' || e.key === 'Right') rightPressed = false;
     });
 
-   resetBtn.addEventListener('click', ()=>{
-  running = true;
-  reset();
-  requestAnimationFrame(loop);
-});
-    // bắt đầu
+    // reset button: bắt đầu loop an toàn (chỉ 1 rAF)
+    resetBtn.addEventListener('click', ()=>{
+      reset();
+      running = true;
+      if(rafId === null) {
+        rafId = requestAnimationFrame(loop);
+      }
+    });
+
+    // modal controls
+    playAgainBtn.addEventListener('click', ()=>{
+      reset();
+      running = true;
+      if(rafId === null) rafId = requestAnimationFrame(loop);
+    });
+    closeModalBtn.addEventListener('click', ()=>{
+      hideGameOver();
+    });
+
+    // Khi cửa sổ mất focus (ví dụ do alert/confirm, chuyển tab) -> reset trạng thái phím
+    window.addEventListener("blur", () => {
+      leftPressed = false;
+      rightPressed = false;
+    });
+
+    // bắt đầu game lần đầu (một rAF duy nhất)
     reset();
-    requestAnimationFrame(loop);
+    running = true;
+    if(rafId === null) rafId = requestAnimationFrame(loop);
 
     // Gợi ý: nếu muốn chậm hơn, giảm config.startVx / startVy hoặc giảm bat.speed
   </script>
