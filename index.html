@@ -151,6 +151,23 @@ if (ball.vy > 0 && ball.y + ball.vy + ball.r >= bat.y) {
     if (bounceCount >= 4) {
       bounceCount = 0;
       bat.speed = Math.min(bat.speed + 0.8, 12);
+      // di chuyển bóng
+ball.x += ball.vx;
+ball.y += ball.vy;
+
+// --- VA CHẠM TƯỜNG ---
+if (ball.x - ball.r <= 0) {
+  ball.x = ball.r;
+  ball.vx *= -1;
+}
+if (ball.x + ball.r >= W) {
+  ball.x = W - ball.r;
+  ball.vx *= -1;
+}
+if (ball.y - ball.r <= 0) {
+  ball.y = ball.r;
+  ball.vy *= -1;
+}
     }
     updateScore();
   }
