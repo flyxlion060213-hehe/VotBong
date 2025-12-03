@@ -124,65 +124,58 @@
       if(stroke) ctx.stroke();
     }
 
-    // update logic (sửa: đặt lại vị trí sau va chạm, đảm bảo chỉ 1 rAF)
+    // update logic (đã dọn lỗi lặp)
     function update() {
-  // di chuyển vợt
-  let mv = (rightPressed ? 1 : 0) - (leftPressed ? 1 : 0);
-  bat.x += mv * bat.speed;
+      // di chuyển vợt
+      let mv = (rightPressed ? 1 : 0) - (leftPressed ? 1 : 0);
+      bat.x += mv * bat.speed;
 
-  if (bat.x < 0) bat.x = 0;
-  if (bat.x + bat.w > W) bat.x = W - bat.w;
+      if (bat.x < 0) bat.x = 0;
+      if (bat.x + bat.w > W) bat.x = W - bat.w;
 
-  // --- VA CHẠM VỚI VỢT ---
-  if (ball.vy > 0 && ball.y + ball.vy + ball.r >= bat.y) {
-    if (ball.x + ball.r >= bat.x && ball.x - ball.r <= bat.x + bat.w) {
+      // --- VA CHẠM VỚI VỢT ---
+      if (ball.vy > 0 && ball.y + ball.vy + ball.r >= bat.y) {
+        if (ball.x + ball.r >= bat.x && ball.x - ball.r <= bat.x + bat.w) {
 
-      const hitPos = (ball.x - (bat.x + bat.w / 2)) / (bat.w / 2);
-      const newAngle = -Math.PI / 2 + hitPos * Math.PI / 3;
-      const newSpeed = Math.min(3 + score * 0.015, 6);
+          const hitPos = (ball.x - (bat.x + bat.w / 2)) / (bat.w / 2);
+          const newAngle = -Math.PI / 2 + hitPos * Math.PI / 3;
+          const newSpeed = Math.min(3 + score * 0.015, 6);
 
-      ball.vx = Math.cos(newAngle) * newSpeed;
-      ball.vy = Math.sin(newAngle) * newSpeed;
-      if (ball.vy > 0) ball.vy = -Math.abs(ball.vy);
+          ball.vx = Math.cos(newAngle) * newSpeed;
+          ball.vy = Math.sin(newAngle) * newSpeed;
+          if (ball.vy > 0) ball.vy = -Math.abs(ball.vy);
 
-      ball.y = bat.y - ball.r - 0.5;
+          // Đẩy bóng ra khỏi vợt để tránh kẹt
+          ball.y = bat.y - ball.r - 0.5;
 
-      score += 1;
-      bounceCount += 1;
-      if (bounceCount >= 4) {
-        bounceCount = 0;
-        bat.speed = Math.min(bat.speed + 0.8, 12);
+          score += 1;
+          bounceCount += 1;
+          if (bounceCount >= 4) {
+            bounceCount = 0;
+            bat.speed = Math.min(bat.speed + 0.8, 12);
+          }
+          updateScore();
+        }
       }
-      updateScore();
-    }
-  }
-
-  // di chuyển bóng
-  ball.x += ball.vx;
-  ball.y += ball.vy;
-
-  // --- VA CHẠM TƯỜNG: TRÁI / PHẢI ---
-  if (ball.x - ball.r <= 0) {
-    ball.x = ball.r;
-    ball.vx *= -1;
-  }
-  else if (ball.x + ball.r >= W) {
-    ball.x = W - ball.r;
-    ball.vx *= -1;
-  }
-
-  // --- VA CHẠM TRẦN ---
-  if (ball.y - ball.r <= 0) {
-    ball.y = ball.r;
-    ball.vy *= -1;
-  }
-}
-
-
 
       // di chuyển bóng
       ball.x += ball.vx;
       ball.y += ball.vy;
+
+      // --- VA CHẠM TƯỜNG: TRÁI / PHẢI ---
+      if (ball.x - ball.r <= 0) {
+        ball.x = ball.r;
+        ball.vx *= -1;
+      } else if (ball.x + ball.r >= W) {
+        ball.x = W - ball.r;
+        ball.vx *= -1;
+      }
+
+      // --- VA CHẠM TRẦN ---
+      if (ball.y - ball.r <= 0) {
+        ball.y = ball.r;
+        ball.vy *= -1;
+      }
     }
 
     function updateScore(){ scoreEl.textContent = score; }
